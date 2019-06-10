@@ -4,14 +4,20 @@ import cn.sisyphe.framework.cache.core.annotation.EnableS2Cache;
 import demo.model.BagInfo;
 import demo.model.GenderValue;
 import demo.model.MemberInfo;
+import demo.model.SyncStation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StopWatch;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,13 +39,38 @@ public class RedisApplication implements CommandLineRunner {
     @Autowired
     private MemberRepository memberRepository;
 
+    @Autowired
+    private SyncStationService syncStationService;
+
+    @Autowired
+    private SyncStationRepository syncStationRepository;
+
     @Override
     public void run(String... args) throws Exception {
 
-        for (int i = 0; i < 10; i++) {
-            String memberCode = "MM0001" + i;
-            create(memberCode);
+
+        StopWatch stopWatch = new StopWatch();
+        stopWatch.start();
+
+        for (int i = 0; i < 100; i++) {
+
+            SyncStation syncStation = syncStationRepository.findFirstBySyncStatus(0);
+            if (syncStation == null) {
+                syncStationService.create();
+                continue;
+            }
+
+            syncStation.setSyncStatus(1);
+            syncStationRepository.save(syncStation);
+
+//            System.err.println(datetime + " " + syncStation);
         }
+        stopWatch.stop();
+        System.err.println(stopWatch.prettyPrint());
+//        for (int i = 0; i < 10; i++) {
+//            String memberCode = "MM0001" + i;
+//            create(memberCode);
+//        }
 
 //        findByMemberCode("MM000110");
 
@@ -50,7 +81,6 @@ public class RedisApplication implements CommandLineRunner {
 //        findByOpenId("ac2f5cb5-2a2b-4f53-bc98-2aa8a978ba72");
 
     }
-
 
 
     /**
@@ -117,7 +147,7 @@ public class RedisApplication implements CommandLineRunner {
         bagInfo.setInfoCode(memberCode);
         bagInfo.setOpenId(UUID.randomUUID().toString());
 
-        List<BagInfo> bagInfoList = new ArrayList<>();
+        List<BagInfo> bagInfoList = new ArrayList<BagInfo>();
         bagInfoList.add(bagInfo);
 
         memberInfo.setBagInfoSet(bagInfoList);
